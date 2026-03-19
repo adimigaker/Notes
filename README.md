@@ -1,0 +1,2 @@
+# Notes
+Aplikasi catatan pribadi
