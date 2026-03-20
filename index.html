@@ -2378,7 +2378,7 @@ document.getElementById('hmenu-theme').addEventListener('click', () => {
   document.getElementById('hmenu-theme-label').textContent = labels[next];
   toast(labels[next]);
 });
-document.getElementById('hmenu-signout').addEventListener('click', () => { closeHMenu(); showModal('modal-signout'); history.back(); });
+document.getElementById('hmenu-signout').addEventListener('click', () => { closeHMenu(); showModal('modal-signout'); });
 document.getElementById('hmenu-reset').addEventListener('click', () => {
   closeHMenu();
   toast('Semua data & cookies direset ✦');
