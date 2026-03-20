@@ -402,7 +402,7 @@ html, body {
   position: fixed;
   background: #1a1814;
   border-radius: 12px;
-  padding: 4px 6px;
+  padding: 4px 2px 4px 6px;
   display: none;
   flex-direction: row;
   align-items: stretch;
@@ -416,6 +416,16 @@ html, body {
 [data-theme="dark"] #format-bubble { background: #f0ede8; }
 #format-bubble.visible { display: flex; }
 #format-bubble.is-dragging { box-shadow: 0 8px 32px rgba(0,0,0,0.45); }
+#fb-drag-handle {
+  width: 22px; min-width: 22px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.3);
+  cursor: grab; touch-action: none;
+  border-radius: 0 8px 8px 0;
+  padding: 0 3px;
+}
+[data-theme="dark"] #fb-drag-handle { color: rgba(0,0,0,0.25); }
+#fb-drag-handle:active { cursor: grabbing; }
 
 .fb-rows {
   display: flex; flex-direction: column; gap: 2px;
@@ -915,7 +925,9 @@ html, body {
       <button class="fb-btn" id="fb-bq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg></button>
     </div>
   </div>
-
+  <div id="fb-drag-handle" title="Drag">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+  </div>
 </div>
 
 <!-- BLOCK MENU (insert blocks) -->
@@ -1216,7 +1228,7 @@ function initQuill() {
             if (f.underline) quill.format('underline', false);
             if (f.strike) quill.format('strike', false);
             if (f.header) quill.format('header', false);
-            if (f.align) quill.format('align', false); // reset to left
+            if (f.align && f.align !== 'justify') quill.format('align', false); // reset kecuali justify
           }
           updateInlineBtn(quill.getSelection(), true);
         }, 0);
@@ -1436,11 +1448,11 @@ function hideFormatBubble() {
   b.style.top = '';
 }
 
-// ── DRAG & DROP for bubble — long press anywhere on bubble ──
+// ── DRAG & DROP for bubble — via handle di kanan ──
 (function() {
   const bubble = document.getElementById('format-bubble');
-  let dragging = false, longPressTimer = null;
-  let startX, startY, origLeft, origTop;
+  const handle = document.getElementById('fb-drag-handle');
+  let dragging = false, startX, startY, origLeft, origTop;
 
   function onStart(cx, cy) {
     dragging = true;
@@ -1448,57 +1460,46 @@ function hideFormatBubble() {
     origLeft = parseInt(bubble.style.left) || bubble.getBoundingClientRect().left;
     origTop  = parseInt(bubble.style.top)  || bubble.getBoundingClientRect().top;
     bubble.style.transform = 'none';
-    bubble.style.opacity = '0.85';
+    bubble.style.opacity = '0.9';
+    bubble.classList.add('is-dragging');
   }
   function onMove(cx, cy) {
     if (!dragging) return;
     const dx = cx - startX, dy = cy - startY;
     const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
-    const newLeft = Math.max(0, Math.min(origLeft + dx, window.innerWidth - bw));
-    const newTop  = Math.max(0, Math.min(origTop + dy, window.innerHeight - bh));
-    bubble.style.left = newLeft + 'px';
-    bubble.style.top  = newTop  + 'px';
+    bubble.style.left = Math.max(0, Math.min(origLeft + dx, window.innerWidth - bw)) + 'px';
+    bubble.style.top  = Math.max(0, Math.min(origTop  + dy, window.innerHeight - bh)) + 'px';
   }
   function onEnd() {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     dragging = false;
     bubble.style.opacity = '1';
     bubble.classList.remove('is-dragging');
   }
 
-  // Desktop: mousedown on bubble background (not buttons)
-  bubble.addEventListener('mousedown', e => {
-    if (e.target.closest('.fb-btn, .fb-sep')) return;
-    e.preventDefault();
-    onStart(e.clientX, e.clientY);
-  });
-  document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+  // Desktop
+  handle.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+  document.addEventListener('mousemove', e => { if (dragging) onMove(e.clientX, e.clientY); });
   document.addEventListener('mouseup', onEnd);
 
-  // Mobile: long press 400ms to activate drag
-  bubble.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null;
-      bubble.classList.add('is-dragging');
-      onStart(t.clientX, t.clientY);
-    }, 400);
-  }, { passive: true });
+  // Mobile — handle langsung drag tanpa long press
+  function onTouchMove(e) {
+    if (dragging) { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }
+  }
+  function onTouchEnd() {
+    onEnd();
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchcancel', onTouchEnd);
+  }
 
-  bubble.addEventListener('touchmove', e => {
-    if (longPressTimer) {
-      // Moved before long press — cancel drag intent
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-    if (dragging) {
-      e.preventDefault();
-      onMove(e.touches[0].clientX, e.touches[0].clientY);
-    }
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    onStart(e.touches[0].clientX, e.touches[0].clientY);
+    // Pasang listener di document hanya saat drag aktif
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchEnd);
   }, { passive: false });
-
-  bubble.addEventListener('touchend', onEnd);
-  bubble.addEventListener('touchcancel', onEnd);
 })();
 
 // Format bubble button handler — mousedown preventDefault keeps focus
@@ -1588,8 +1589,9 @@ function injectBlockquoteDeleteBtns() {
     ghost = createGhost(el);
     dropLine = createDropLine();
     moveAt(cx, cy);
-    // Blur quill so keyboard closes
     if (quill) quill.blur();
+    // Pasang non-passive listener saat drag aktif
+    document.addEventListener('touchmove', onBlockDragMove, { passive: false });
   }
 
   function moveAt(cx, cy) {
@@ -1659,6 +1661,7 @@ function injectBlockquoteDeleteBtns() {
     }, 500);
   }, { passive: true });
 
+  // passive:true untuk cancel longpress saat scroll
   document.addEventListener('touchmove', e => {
     const t = e.touches[0];
     const dx = Math.abs(t.clientX - startX);
@@ -1666,18 +1669,23 @@ function injectBlockquoteDeleteBtns() {
     if (longPressTimer && (dx > 10 || dy > 10)) {
       clearTimeout(longPressTimer); longPressTimer = null;
     }
-    if (dragActive) {
-      e.preventDefault();
-      moveAt(t.clientX, t.clientY);
-    }
-  }, { passive: false });
+  }, { passive: true });
+
+  // non-passive touchmove untuk drag — dipasang di startDrag, dilepas di sini
+  function onBlockDragMove(e) {
+    if (dragActive) { e.preventDefault(); moveAt(e.touches[0].clientX, e.touches[0].clientY); }
+  }
 
   document.addEventListener('touchend', e => {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     if (dragActive) endDrag(e.changedTouches[0].clientY);
+    document.removeEventListener('touchmove', onBlockDragMove);
   });
 
-  document.addEventListener('touchcancel', cleanup);
+  document.addEventListener('touchcancel', () => {
+    cleanup();
+    document.removeEventListener('touchmove', onBlockDragMove);
+  });
 })();
 
 function fmtToggle(format, value) {
