@@ -745,7 +745,7 @@ html, body {
 <div id="auth-screen">
   <div class="auth-mark">✦ <em>notes</em></div>
   <h1 class="auth-title">Selamat datang</h1>
-  <p class="auth-sub">Tuang aja dulu. Clarity menyusul.</p>
+  <p class="auth-sub">Simpel. Minimalis. Ringan.</p>
   <div class="auth-form">
     <input class="auth-input" id="auth-email" type="email" placeholder="email" autocomplete="email">
     <input class="auth-input" id="auth-pass" type="password" placeholder="password" autocomplete="current-password">
@@ -855,6 +855,10 @@ html, body {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         Pintasan
       </button>
+      <button class="hmenu-item" id="hmenu-about">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Tentang
+      </button>
       <button class="hmenu-item danger" id="hmenu-reset" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
         Reset Data
@@ -890,6 +894,35 @@ html, body {
       <button class="mbtn mbtn-cancel" id="pintasan-cancel">Batal</button>
       <button class="mbtn mbtn-ok" id="pintasan-save">Simpan</button>
     </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div class="overlay" id="about-overlay">
+  <div class="overlay-header">
+    <button class="overlay-back" id="about-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.15em;color:var(--muted);text-transform:uppercase;flex:1;text-align:center">Tentang</span>
+    <div style="width:36px"></div>
+  </div>
+  <div class="overlay-body" style="padding:28px 24px 40px;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.9;color:var(--text)">
+    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ notes</div>
+    <p style="margin-bottom:16px">Selamat datang di <strong>NOTES</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
+    <p style="margin-bottom:12px">Kami sengaja membuatnya minimalis dan ringan:</p>
+    <ul style="margin:0 0 16px 0;padding-left:20px;list-style:disc">
+      <li style="margin-bottom:8px">Tidak ada fitur berlebih yang membebani pikiran.</li>
+      <li style="margin-bottom:8px">Hanya format dasar yang benar-benar dibutuhkan: bold, italic, underline, heading, list, dan sisipan gambar sederhana.</li>
+      <li style="margin-bottom:8px">Dukungan <span style="color:var(--accent)">#hashtag</span> untuk mengelompokkan catatan dengan mudah — cari, filter, dan temukan pola pikiranmu kapan saja.</li>
+    </ul>
+    <p style="margin-bottom:12px">Karena ini PWA, kamu bisa:</p>
+    <ul style="margin:0 0 16px 0;padding-left:20px;list-style:disc">
+      <li style="margin-bottom:8px">Bookmark halaman ini, atau</li>
+      <li style="margin-bottom:8px">Install ke home screen agar terasa seperti aplikasi native — cepat, offline-ready, dan selalu siap di perangkatmu.</li>
+    </ul>
+    <p style="margin-bottom:16px">Kami percaya catatan terbaik adalah yang lahir dari kejujuran dan kemudahan. Tidak perlu ribet, cukup tulis apa adanya.</p>
+    <p style="margin-bottom:16px">Terima kasih banyak telah memilih dan menggunakan aplikasi ini.</p>
+    <p style="margin-bottom:24px">Kritik, saran, atau cerita pengalamanmu sangat kami hargai — itu yang membuat aplikasi ini semakin baik.</p>
+    <p style="margin-bottom:8px">Sekian, dan selamat menulis.</p>
+    <p style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-top:32px;padding-top:16px;border-top:1px solid var(--border)">insanmajnun – 2026</p>
   </div>
 </div>
 
@@ -1144,7 +1177,7 @@ function initQuill() {
     placeholder: 'Tulis sesuatu... gunakan #hashtag untuk menandai.',
     modules: {
       toolbar: false,
-      history: { delay: 1000, maxStack: 200, userOnly: true }
+      history: { delay: 500, maxStack: 500, userOnly: false }
     }
   });
 
@@ -1223,12 +1256,12 @@ function initQuill() {
           if (!r) return;
           if (hasNewline) {
             const f = quill.getFormat(r.index);
-            if (f.bold) quill.format('bold', false);
-            if (f.italic) quill.format('italic', false);
-            if (f.underline) quill.format('underline', false);
-            if (f.strike) quill.format('strike', false);
-            if (f.header) quill.format('header', false);
-            if (f.align && f.align !== 'justify') quill.format('align', false); // reset kecuali justify
+            if (f.bold) quill.format('bold', false, 'silent');
+            if (f.italic) quill.format('italic', false, 'silent');
+            if (f.underline) quill.format('underline', false, 'silent');
+            if (f.strike) quill.format('strike', false, 'silent');
+            if (f.header) quill.format('header', false, 'silent');
+            if (f.align && f.align !== 'justify') quill.format('align', false, 'silent');
           }
           updateInlineBtn(quill.getSelection(), true);
         }, 0);
@@ -2298,6 +2331,11 @@ window.addEventListener('popstate', () => {
     document.getElementById('pintasan-overlay').classList.remove('visible');
     return;
   }
+  // Close about overlay
+  if (document.getElementById('about-overlay').classList.contains('visible')) {
+    document.getElementById('about-overlay').classList.remove('visible');
+    return;
+  }
   // Edit mode → kembali ke view catatan
   if (editingNoteId) {
     cancelEdit();
@@ -2592,6 +2630,13 @@ document.getElementById('pintasan-save').addEventListener('click', async () => {
 });
 
 // Buka/tutup halaman pintasan
+document.getElementById('hmenu-about').addEventListener('click', () => {
+  closeHMenu();
+  document.getElementById('about-overlay').classList.add('visible');
+  history.pushState({ overlay: 'about' }, '');
+});
+document.getElementById('about-back').addEventListener('click', () => history.back());
+
 document.getElementById('hmenu-pintasan').addEventListener('click', () => {
   closeHMenu();
   renderPintasanPage();
