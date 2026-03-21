@@ -410,9 +410,12 @@ html, body {
   gap: 0;
   z-index: 100;
   box-shadow: 0 4px 20px rgba(0,0,0,0.35);
-  touch-action: none;
   max-width: calc(100vw - 16px);
   transition: opacity 0.15s;
+}
+#format-bubble.visible {
+  display: flex;
+  touch-action: none;
 }
 [data-theme="dark"] #format-bubble { background: #f0ede8; }
 #format-bubble.visible { display: flex; }
@@ -888,9 +891,14 @@ html, body {
 <div class="modal-backdrop" id="modal-pintasan">
   <div class="modal-box">
     <div class="modal-label">Pintasan</div>
-    <input class="modal-input" id="pintasan-trigger" placeholder="Contoh: yg" autocapitalize="none" autocorrect="off" spellcheck="false">
-    <div class="modal-label" style="margin-top:8px">Hasil</div>
-    <input class="modal-input" id="pintasan-result-text" placeholder="Contoh: yang atau 🙂" spellcheck="false">
+    <input class="modal-input" id="pintasan-trigger" placeholder="Contoh: krn" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div class="modal-label" style="margin-top:8px">Hasil teks / emoji</div>
+    <input class="modal-input" id="pintasan-result-text" placeholder="karena" spellcheck="false">
+    <div class="modal-label" style="margin-top:8px">SVG <span style="color:var(--muted);font-size:10px">(opsional)</span></div>
+    <textarea class="modal-input" id="pintasan-svg-input" placeholder="Paste kode SVG..." rows="3" style="resize:none;font-size:11px;font-family:'DM Mono',monospace" autocorrect="off" autocapitalize="none" spellcheck="false"></textarea>
+    <div id="pintasan-preview" style="display:none;padding:6px 0;font-size:13px;color:var(--muted)">
+      Preview: <span id="pintasan-preview-img"></span>
+    </div>
     <div class="modal-actions">
       <button class="mbtn mbtn-cancel" id="pintasan-cancel">Batal</button>
       <button class="mbtn mbtn-ok" id="pintasan-save">Simpan</button>
@@ -1119,12 +1127,15 @@ function initTheme() { applyTheme(localStorage.getItem('notes_theme') || 'auto')
 function applyTheme(mode) {
   const isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  document.getElementById('theme-meta').setAttribute('content', isDark ? '#0f0f0f' : '#faf9f7');
-  document.getElementById('icon-sun').style.display  = mode === 'light' ? 'block' : 'none';
-  document.getElementById('icon-moon').style.display = mode === 'dark'  ? 'block' : 'none';
-  document.getElementById('icon-auto').style.display = mode === 'auto'  ? 'block' : 'none';
+  const themeMeta = document.getElementById('theme-meta');
+  if (themeMeta) themeMeta.setAttribute('content', isDark ? '#0f0f0f' : '#faf9f7');
+  const sun = document.getElementById('icon-sun');
+  const moon = document.getElementById('icon-moon');
+  const auto = document.getElementById('icon-auto');
+  if (sun) sun.style.display  = mode === 'light' ? 'block' : 'none';
+  if (moon) moon.style.display = mode === 'dark'  ? 'block' : 'none';
+  if (auto) auto.style.display = mode === 'auto'  ? 'block' : 'none';
   localStorage.setItem('notes_theme', mode);
-  // Update Quill editor text color if initialized
   if (quill) {
     const el = document.querySelector('.ql-editor');
     if (el) el.style.color = getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
@@ -1208,15 +1219,21 @@ function initQuill() {
     pintasanBusy = true;
     // Hapus trigger, sisakan spasi, insert hasil
     quill.deleteText(wordStart, trigger.length, 'silent');
-    quill.insertText(wordStart, p.result, 'silent');
-    pintasanBusy = false;
-
-    // Fix kursor dengan setTimeout — beri waktu DOM settle
-    const newPos = wordStart + p.result.length + 1;
-    setTimeout(() => {
-      quill.setSelection(newPos, 0, 'silent');
-      quill.focus();
-    }, 10);
+    if (p.svg) {
+      quill.insertEmbed(wordStart, 'inline-image', { src: p.svg, alt: p.trigger }, 'silent');
+      pintasanBusy = false;
+      const newPos = wordStart + 2; // embed=1 + spasi=1
+      setTimeout(() => { quill.setSelection(newPos, 0, 'silent'); quill.focus(); }, 10);
+    } else {
+      quill.insertText(wordStart, p.result, 'silent');
+      pintasanBusy = false;
+      // Fix kursor dengan setTimeout — beri waktu DOM settle
+      const newPos = wordStart + p.result.length + 1;
+      setTimeout(() => {
+        quill.setSelection(newPos, 0, 'silent');
+        quill.focus();
+      }, 10);
+    }
   });
 
   // Show format bubble on selection, update inline + button on cursor change
@@ -2587,7 +2604,9 @@ function renderPintasanPage() {
     <div class="pintasan-item" data-i="${i}">
       <span class="pintasan-trigger">${escHtml(p.trigger)}</span>
       <span class="pintasan-arrow">→</span>
-      <span class="pintasan-result">${escHtml(p.result)}</span>
+      <span class="pintasan-result">${p.svg
+        ? `<img src="${p.svg}" class="pintasan-img"> <span style="color:var(--muted);font-size:11px">(SVG)</span>`
+        : escHtml(p.result)}</span>
       <div class="pintasan-actions">
         <button class="pintasan-btn" data-edit="${i}" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -2613,22 +2632,63 @@ function renderPintasanPage() {
 
 // Modal tambah/edit
 let editingPintasanIdx = -1;
+function svgToDataUri(svgStr) {
+  try { return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr.trim()))); }
+  catch { return null; }
+}
+
 function openPintasanModal(idx = -1) {
   editingPintasanIdx = idx;
   const p = idx >= 0 ? pintasanList[idx] : null;
-  document.getElementById('pintasan-trigger').value = p ? p.trigger : '';
-  document.getElementById('pintasan-result-text').value = p ? p.result : '';
+  const triggerEl = document.getElementById('pintasan-trigger');
+  const resultEl  = document.getElementById('pintasan-result-text');
+  const svgEl     = document.getElementById('pintasan-svg-input');
+  const previewEl = document.getElementById('pintasan-preview');
+  if (triggerEl) triggerEl.value = p ? p.trigger : '';
+  if (resultEl)  resultEl.value  = p ? (p.result || '') : '';
+  if (svgEl)     svgEl.value     = p ? (p.svgRaw || '') : '';
+  if (previewEl) previewEl.style.display = 'none';
+  if (p && p.svg && previewEl) {
+    const imgEl = document.getElementById('pintasan-preview-img');
+    if (imgEl) imgEl.innerHTML = `<img src="${p.svg}" class="pintasan-img">`;
+    previewEl.style.display = 'block';
+  }
   showModal('modal-pintasan');
+}
+
+// Live preview saat SVG diketik
+const svgInputEl = document.getElementById('pintasan-svg-input');
+if (svgInputEl) {
+  svgInputEl.addEventListener('input', () => {
+    const raw = svgInputEl.value.trim();
+    const previewEl = document.getElementById('pintasan-preview');
+    const imgEl = document.getElementById('pintasan-preview-img');
+    if (!previewEl || !imgEl) return;
+    if (!raw) { previewEl.style.display = 'none'; return; }
+    const uri = svgToDataUri(raw);
+    if (uri) {
+      imgEl.innerHTML = `<img src="${uri}" class="pintasan-img"> ← tampilan dalam teks`;
+      previewEl.style.display = 'block';
+    } else {
+      previewEl.style.display = 'none';
+    }
+  });
 }
 
 document.getElementById('pintasan-add-btn').addEventListener('click', () => openPintasanModal());
 document.getElementById('pintasan-cancel').addEventListener('click', () => hideModal('modal-pintasan'));
 document.getElementById('pintasan-save').addEventListener('click', async () => {
-  const trigger = document.getElementById('pintasan-trigger').value.trim();
-  const result  = document.getElementById('pintasan-result-text').value.trim();
+  const trigger = (document.getElementById('pintasan-trigger')?.value || '').trim();
+  const result  = (document.getElementById('pintasan-result-text')?.value || '').trim();
+  const svgRaw  = (document.getElementById('pintasan-svg-input')?.value || '').trim();
   if (!trigger) { toast('Isi kolom pintasan'); return; }
-  if (!result)  { toast('Isi kolom hasil'); return; }
-  const entry = { trigger, result };
+  if (!result && !svgRaw) { toast('Isi hasil teks atau SVG'); return; }
+  let svg = '';
+  if (svgRaw) {
+    svg = svgToDataUri(svgRaw);
+    if (!svg) { toast('SVG tidak valid'); return; }
+  }
+  const entry = { trigger, result: svg ? '' : result, svg, svgRaw };
   if (editingPintasanIdx >= 0) pintasanList[editingPintasanIdx] = entry;
   else pintasanList.push(entry);
   await savePintasan(pintasanList);
