@@ -595,7 +595,7 @@ html, body {
 .pintasan-btn:active { background: var(--accent-dim); color: var(--accent); }
 .pintasan-empty { text-align: center; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; padding: 40px 20px; line-height: 2; }
 /* Pintasan inline di Quill dan view */
-.pintasan-img { width: 18px !important; height: 18px !important; vertical-align: middle !important; display: inline !important; margin: 0 1px !important; border-radius: 0 !important; max-width: none !important; }
+.pintasan-img { width: 22px !important; height: 22px !important; vertical-align: -5px !important; display: inline !important; margin: 0 1px !important; border-radius: 0 !important; max-width: none !important; }
 .detail-title { font-size: 22px; font-weight: 600; line-height: 1.4; padding: 24px 20px 12px; font-family: 'Lora', Georgia, serif; }
 .detail-divider { height: 1px; background: var(--border); margin: 0 20px 16px; opacity: 0.6; }
 .detail-content { font-size: 16px; line-height: 1.8; color: var(--text); padding: 0 20px 24px; font-family: 'Lora', Georgia, serif; }
@@ -1641,7 +1641,9 @@ function injectBlockquoteDeleteBtns() {
     dropLine = createDropLine();
     moveAt(cx, cy);
     if (quill) quill.blur();
-    // Pasang non-passive listener saat drag aktif
+    // Cegah scroll container saat drag
+    const scrollEl = document.querySelector('.write-scroll');
+    if (scrollEl) scrollEl.style.overflowY = 'hidden';
     document.addEventListener('touchmove', onBlockDragMove, { passive: false });
   }
 
@@ -1650,6 +1652,14 @@ function injectBlockquoteDeleteBtns() {
     if (ghost) {
       ghost.style.left = Math.max(8, cx - ghost.offsetWidth / 2) + 'px';
       ghost.style.top  = (cy - 20) + 'px';
+    }
+    // Auto-scroll saat drag mendekati tepi atas/bawah
+    const scrollEl = document.querySelector('.write-scroll');
+    if (scrollEl) {
+      const rect = scrollEl.getBoundingClientRect();
+      const edge = 80;
+      if (cy < rect.top + edge) scrollEl.scrollTop -= 8;
+      else if (cy > rect.bottom - edge) scrollEl.scrollTop += 8;
     }
     const dt = getDropTarget(cy);
     if (dropLine) {
@@ -1695,6 +1705,9 @@ function injectBlockquoteDeleteBtns() {
     if (ghost) { ghost.remove(); ghost = null; }
     if (dropLine) { dropLine.remove(); dropLine = null; }
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    // Restore scroll
+    const scrollEl = document.querySelector('.write-scroll');
+    if (scrollEl) scrollEl.style.overflowY = '';
   }
 
   // Touch events on editor
