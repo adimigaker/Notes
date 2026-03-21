@@ -109,7 +109,8 @@ html, body {
 .auth-mark em { color: var(--accent); font-style: normal; }
 .auth-title { font-size: 26px; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 6px; }
 .auth-sub { font-size: 14px; color: var(--muted); font-style: italic; margin-bottom: 44px; }
-.auth-form { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
+.auth-form { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .auth-input {
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
   padding: 13px 15px; color: var(--text); font-family: 'DM Mono', monospace;
@@ -746,7 +747,7 @@ html, body {
   <div class="auth-mark">✦ <em>notes</em></div>
   <h1 class="auth-title">Selamat datang</h1>
   <p class="auth-sub">Simpel. Minimalis. Ringan.</p>
-  <div class="auth-form">
+  <div class="auth-form" id="auth-form" style="display:none">
     <input class="auth-input" id="auth-email" type="email" placeholder="email" autocomplete="email">
     <input class="auth-input" id="auth-pass" type="password" placeholder="password" autocomplete="current-password">
     <button class="auth-btn" id="auth-btn">MASUK</button>
@@ -2123,7 +2124,13 @@ async function doLogin() {
 
 async function checkSession() {
   const { data } = await sb.auth.getSession();
-  if (data.session) { currentUser = data.session.user; showApp(); }
+  if (data.session) {
+    currentUser = data.session.user;
+    showApp(); // langsung masuk, auth-screen tidak sempat terlihat
+  } else {
+    // Tidak ada session — tampilkan form login dengan fade in
+    document.getElementById('auth-form').style.display = 'flex';
+  }
 }
 
 function showApp() {
@@ -2433,6 +2440,7 @@ document.getElementById('hmenu-reset').addEventListener('click', () => {
     clearDraft();
     document.getElementById('app').classList.remove('visible');
     document.getElementById('auth-screen').style.display = '';
+    document.getElementById('auth-form').style.display = 'flex';
     document.getElementById('auth-email').value = '';
     document.getElementById('auth-pass').value = '';
     document.getElementById('auth-err').textContent = '';
