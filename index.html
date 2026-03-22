@@ -25,6 +25,14 @@ Quill.register(Header, true);
 const Blockquote = Quill.import('formats/blockquote');
 Quill.register(Blockquote, true);
 
+// CodeBlock: persis seperti Blockquote, render sebagai <pre>
+const Block = Quill.import('blots/block');
+class CodeBlockBlot extends Block {}
+CodeBlockBlot.blotName = 'code-block';
+CodeBlockBlot.tagName = 'pre';
+CodeBlockBlot.className = 'ql-code-line';
+Quill.register(CodeBlockBlot, true);
+
 // ImageBlock: single non-editable block containing image + caption
 const BlockEmbed = Quill.import('blots/block/embed');
 class ImageBlock extends BlockEmbed {
@@ -73,53 +81,6 @@ InlineImage.blotName = 'inline-image';
 InlineImage.tagName = 'img';
 InlineImage.className = 'pintasan-img';
 Quill.register(InlineImage, true);
-
-// CodeBlock: blok kode dengan tombol copy
-class CodeBlock extends BlockEmbed {
-  static create(value) {
-    const node = super.create();
-    node.setAttribute('contenteditable', 'false');
-    node.setAttribute('spellcheck', 'false');
-
-    const header = document.createElement('div');
-    header.className = 'ql-code-header';
-    header.innerHTML = '<span class="ql-code-lang">code</span>';
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'ql-code-copy';
-    copyBtn.title = 'Salin';
-    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-    copyBtn.addEventListener('mousedown', e => e.preventDefault());
-    copyBtn.addEventListener('click', () => {
-      const code = node.querySelector('.ql-code-content');
-      if (!code) return;
-      navigator.clipboard.writeText(code.innerText || code.textContent).then(() => {
-        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>';
-        setTimeout(() => {
-          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-        }, 1500);
-      });
-    });
-    header.appendChild(copyBtn);
-
-    const pre = document.createElement('pre');
-    pre.className = 'ql-code-content';
-    pre.setAttribute('contenteditable', 'true');
-    pre.setAttribute('spellcheck', 'false');
-    pre.textContent = value || '';
-
-    node.appendChild(header);
-    node.appendChild(pre);
-    return node;
-  }
-  static value(node) {
-    const pre = node.querySelector('.ql-code-content');
-    return pre ? (pre.innerText || pre.textContent || '') : '';
-  }
-}
-CodeBlock.blotName = 'code-block-custom';
-CodeBlock.tagName = 'div';
-CodeBlock.className = 'ql-code-block';
-Quill.register(CodeBlock, true);
 </script>
 
 <style>
@@ -276,6 +237,8 @@ html, body {
   font-style: italic;
   color: var(--muted);
   position: relative;
+  -webkit-user-select: contain;
+  user-select: contain;
 }
 .ql-editor blockquote::before {
   content: '\201C';
@@ -582,52 +545,82 @@ html, body {
 }
 
 /* ── CODEBOX ── */
-.ql-code-block {
-  margin: 12px 0;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  overflow: hidden;
-  cursor: default;
+.ql-editor pre.ql-code-line,
+.detail-content pre.ql-code-line {
+  font-family: 'DM Mono', monospace !important;
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  margin: 0 !important;
+  padding: 3px 14px !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  border-left: 1px solid var(--border) !important;
+  border-right: 1px solid var(--border) !important;
+  counter-reset: none !important;
+  -webkit-user-select: contain;
+  user-select: contain;
 }
-.ql-code-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 12px;
+/* Baris pertama dari grup */
+.ql-editor pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line),
+.detail-content pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line) {
+  border-top: 1px solid var(--border) !important;
+  border-radius: 10px 10px 0 0 !important;
+  padding-top: 32px !important;
+  margin-top: 12px !important;
+  position: relative;
+}
+/* Baris terakhir dari grup */
+.ql-editor pre.ql-code-line:not(:has(+ pre.ql-code-line)),
+.detail-content pre.ql-code-line:not(:has(+ pre.ql-code-line)) {
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 0 10px 10px !important;
+  padding-bottom: 10px !important;
+  margin-bottom: 12px !important;
+}
+/* Satu baris saja */
+.ql-editor pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line):not(:has(+ pre.ql-code-line)),
+.detail-content pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line):not(:has(+ pre.ql-code-line)) {
+  border-radius: 10px !important;
+  margin-top: 12px !important;
+  margin-bottom: 12px !important;
+}
+/* Label "code" dan tombol copy — pseudo header via ::before */
+.ql-editor pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line)::before,
+.detail-content pre.ql-code-line:not(pre.ql-code-line + pre.ql-code-line)::before {
+  content: 'code';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 28px;
   background: var(--border);
-  border-bottom: 1px solid var(--border);
-}
-.ql-code-lang {
+  border-radius: 9px 9px 0 0;
+  display: flex; align-items: center;
+  padding: 0 12px;
   font-family: 'DM Mono', monospace;
   font-size: 10px; letter-spacing: 0.1em;
   color: var(--muted); text-transform: uppercase;
+  line-height: 28px;
+  pointer-events: none;
 }
-.ql-code-copy {
-  background: transparent; border: none;
-  color: var(--muted); cursor: pointer;
-  padding: 2px 4px; border-radius: 4px;
-  display: flex; align-items: center;
-  transition: color 0.15s;
-}
-.ql-code-copy:active { color: var(--accent); }
-.ql-code-content {
-  display: block;
-  font-family: 'DM Mono', monospace !important;
-  font-size: 13px !important;
-  line-height: 1.6 !important;
-  color: var(--text) !important;
-  padding: 12px 14px !important;
-  margin: 0 !important;
-  white-space: pre-wrap !important;
-  word-break: break-all !important;
-  overflow-x: auto;
-  outline: none;
-  min-height: 44px;
+
+/* Tombol copy di dalam pre baris pertama */
+.ql-editor pre.ql-code-line .ql-codebox-copy,
+.detail-content pre.ql-code-line .ql-codebox-copy {
+  position: absolute;
+  top: 4px; right: 8px;
   background: transparent;
   border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex; align-items: center;
+  -webkit-user-select: none; user-select: none;
+  z-index: 2;
 }
-/* View mode codebox */
-.detail-content .ql-code-block { pointer-events: auto; }
-.detail-content .ql-code-content { user-select: text; -webkit-user-select: text; }
+.ql-editor pre.ql-code-line .ql-codebox-copy:active,
+.detail-content pre.ql-code-line .ql-codebox-copy:active { color: var(--accent); }
 
 /* ── BLOCK DRAG & DROP ── */
 .ql-editor > * { position: relative; }
@@ -1265,6 +1258,8 @@ function stripHtml(html) {
 function extractTags(html) {
   const d = document.createElement('div');
   d.innerHTML = html.replace(/<\/(p|div|li|h[1-6])>/gi,' ').replace(/<br\s*\/?>/gi,' ');
+  // Hapus konten codeblock agar # di dalamnya tidak dihitung sebagai hashtag
+  d.querySelectorAll('pre.ql-code-line').forEach(pre => pre.remove());
   const m = (d.textContent || '').match(/#[\w\u00C0-\u024F]+/g);
   return m ? [...new Set(m.map(t => t.toLowerCase()))] : [];
 }
@@ -1362,6 +1357,7 @@ function initQuill() {
   quill.on('text-change', (delta, oldDelta, source) => {
     saveDraft();
     injectBlockquoteDeleteBtns();
+    injectCodeCopyBtns();
 
     // Detect Enter: delta inserts '\n'
     if (source === 'user') {
@@ -1438,6 +1434,25 @@ function initQuill() {
     try { quill.setContents(JSON.parse(draft)); } catch(e) { quill.root.innerHTML = draft; }
   }
   requestAnimationFrame(injectBlockquoteDeleteBtns);
+  requestAnimationFrame(injectCodeCopyBtns);
+
+  // Intercept Ctrl+A / select-all di dalam pre dan blockquote
+  quill.root.addEventListener('keydown', e => {
+    const isSelectAll = (e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey);
+    if (!isSelectAll) return;
+    const sel = window.getSelection();
+    if (!sel || !sel.anchorNode) return;
+    const block = sel.anchorNode.nodeType === Node.ELEMENT_NODE
+      ? sel.anchorNode.closest('pre, blockquote')
+      : sel.anchorNode.parentElement?.closest('pre, blockquote');
+    if (!block) return;
+    e.preventDefault();
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+
 
   // Click image block in editor → open edit modal
   quill.root.addEventListener('click', e => {
@@ -1566,6 +1581,9 @@ function showFormatBubble(range) {
   // Blockquote: check if current node is inside a blockquote
   const inBq = !!(node && (node.tagName === 'BLOCKQUOTE' || node.closest?.('blockquote')));
   document.getElementById('fb-bq').classList.toggle('is-active', inBq);
+  const inCode = !!(node && (node.tagName === 'PRE' || node.closest?.('pre.ql-code-line')));
+  const fbCodeBtn = document.getElementById('fb-code');
+  if (fbCodeBtn) fbCodeBtn.classList.toggle('is-active', inCode);
   document.getElementById('fb-al').classList.toggle('is-active', lineAlign === null);
   document.getElementById('fb-ac').classList.toggle('is-active', lineAlign === 'center');
   document.getElementById('fb-ar').classList.toggle('is-active', lineAlign === 'right');
@@ -1674,6 +1692,25 @@ function refreshBubble() {
 }
 
 // Inject a × delete button into every blockquote in the editor
+function injectCodeCopyBtns() {
+  if (!quill) return;
+  const iconCopy = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  // Hapus tombol lama
+  quill.root.querySelectorAll('.ql-codebox-copy').forEach(b => b.remove());
+  // Cari baris pertama setiap grup pre
+  quill.root.querySelectorAll('pre.ql-code-line').forEach(pre => {
+    const prev = pre.previousElementSibling;
+    if (prev && prev.tagName === 'PRE' && prev.classList.contains('ql-code-line')) return;
+    // Ini baris pertama — tambah tombol copy
+    const btn = document.createElement('button');
+    btn.className = 'ql-codebox-copy';
+    btn.innerHTML = iconCopy;
+    btn.contentEditable = 'false';
+    btn.addEventListener('mousedown', e => e.preventDefault());
+    pre.appendChild(btn);
+  });
+}
+
 function injectBlockquoteDeleteBtns() {
   if (!quill) return;
   quill.root.querySelectorAll('blockquote').forEach(bq => {
@@ -1879,6 +1916,12 @@ fbHandler('fb-bq', () => {
   quill.format('blockquote', !f.blockquote);
   requestAnimationFrame(() => { injectBlockquoteDeleteBtns(); refreshBubble(); });
 });
+fbHandler('fb-code', () => {
+  if (!quill) return;
+  const f = quill.getFormat();
+  quill.format('code-block', !f['code-block']);
+  requestAnimationFrame(refreshBubble);
+});
 fbHandler('fb-al', () => { if (!quill) return; quill.format('align', false);     requestAnimationFrame(refreshBubble); });
 fbHandler('fb-ac', () => { if (!quill) return; quill.format('align', 'center');  requestAnimationFrame(refreshBubble); });
 fbHandler('fb-ar', () => { if (!quill) return; quill.format('align', 'right');   requestAnimationFrame(refreshBubble); });
@@ -2014,48 +2057,49 @@ document.getElementById('bm-cl').addEventListener('click', () => blockMenuAction
   quill.focus();
 }));
 
-// Codebox dari block menu — insert kosong
 document.getElementById('bm-code').addEventListener('click', () => blockMenuAction(idx => {
-  quill.insertEmbed(idx, 'code-block-custom', '', 'user');
-  quill.setSelection(idx + 1, 0);
-  // Fokus ke pre element
-  setTimeout(() => {
-    const blocks = document.querySelectorAll('.ql-code-block');
-    if (blocks.length) {
-      const last = blocks[blocks.length - 1].querySelector('.ql-code-content');
-      if (last) last.focus();
-    }
-  }, 50);
+  quill.setSelection(idx, 0);
+  quill.format('code-block', true);
+  quill.focus();
 }));
 
-// Codebox dari format bubble — wrap selection
-fbHandler('fb-code', () => {
-  if (!quill) return;
-  const sel = quill.getSelection();
-  if (!sel) return;
-  // Ambil teks yang diseleksi
-  const text = sel.length > 0 ? quill.getText(sel.index, sel.length) : '';
-  if (sel.length > 0) quill.deleteText(sel.index, sel.length, 'user');
-  quill.insertEmbed(sel.index, 'code-block-custom', text.trim(), 'user');
-  quill.setSelection(sel.index + 1, 0);
-  setTimeout(() => {
-    const blocks = document.querySelectorAll('.ql-code-block');
-    if (blocks.length) {
-      // Cari blok yang sesuai dengan index
-      const pre = blocks[blocks.length - 1].querySelector('.ql-code-content');
-      if (pre) {
-        pre.focus();
-        // Set cursor ke akhir
-        const range = document.createRange();
-        range.selectNodeContents(pre);
-        range.collapse(false);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-      }
-    }
-  }, 50);
-  hideFormatBubble();
+// ── COPY CODEBOX ──
+// Delegated handler — baca teks dari semua pre.ql-code-line dalam satu grup
+// Bekerja di editor dan view mode tanpa menyentuh DOM Quill
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.ql-codebox-copy');
+  if (!btn) return;
+  e.stopPropagation();
+  // Cari pre pertama dari grup (yang punya tombol ini)
+  const firstPre = btn.closest('pre.ql-code-line');
+  if (!firstPre) return;
+  // Kumpulkan semua pre berurutan dalam grup
+  const pres = [firstPre];
+  let next = firstPre.nextElementSibling;
+  while (next && next.tagName === 'PRE' && next.classList.contains('ql-code-line')) {
+    pres.push(next);
+    next = next.nextElementSibling;
+  }
+  // Ambil teks — clone agar tombol copy tidak ikut tersalin
+  const text = pres.map(p => {
+    const c = p.cloneNode(true);
+    c.querySelectorAll('.ql-codebox-copy').forEach(b => b.remove());
+    return c.innerText || c.textContent;
+  }).join('\n');
+  // Copy via execCommand — paling reliable di semua WebView
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:2px;height:2px;opacity:0.01';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  const iconCopy = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  const iconDone = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
+  try {
+    document.execCommand('copy');
+    btn.innerHTML = iconDone;
+    setTimeout(() => { btn.innerHTML = iconCopy; }, 1500);
+  } catch(err) {}
+  setTimeout(() => document.body.removeChild(ta), 200);
 });
 
 // ── VIEWPORT (FAB position only) ──
@@ -2352,6 +2396,13 @@ async function loadNotes() {
   const { data, error } = await sb.from('notes').select('*').order('created_at', { ascending: false });
   if (error) { listEl.innerHTML = '<div class="notes-empty">Gagal memuat.</div>'; return; }
   allNotes = (data || []).filter(n => n.title !== '__pintasan__');
+  // Re-scrub tags dari konten — buang tag yang berasal dari codeblock
+  allNotes.forEach(n => {
+    if (n.content && n.tags?.length) {
+      const cleanTags = extractTags(n.content);
+      n.tags = cleanTags;
+    }
+  });
   renderNotes(allNotes, listEl);
 }
 
@@ -2413,7 +2464,7 @@ function walkNodes(node) {
     const span = document.createElement('span');
     span.innerHTML = node.textContent.replace(/#([\w\u00C0-\u024F]+)/g, (m, t) => `<a class="hashtag" data-tag="${t.toLowerCase()}">${m}</a>`);
     node.parentNode.replaceChild(span, node);
-  } else if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT') {
+  } else if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT' && node.nodeName !== 'PRE') {
     Array.from(node.childNodes).forEach(walkNodes);
   }
 }
@@ -2427,6 +2478,16 @@ function openDetail(note) {
   document.getElementById('detail-date').textContent = fmtDate(note.created_at);
   document.getElementById('detail-title-el').textContent = note.title || 'Tanpa judul';
   document.getElementById('detail-body').innerHTML = renderWithHashtags(note.content || '');
+  // Inject tombol copy ke setiap baris pertama codebox di view mode
+  const iconCopy = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  document.getElementById('detail-body').querySelectorAll('pre.ql-code-line').forEach(pre => {
+    const prev = pre.previousElementSibling;
+    if (prev && prev.tagName === 'PRE' && prev.classList.contains('ql-code-line')) return;
+    const btn = document.createElement('button');
+    btn.className = 'ql-codebox-copy';
+    btn.innerHTML = iconCopy;
+    pre.appendChild(btn);
+  });
   document.getElementById('detail-overlay').classList.add('visible');
   document.getElementById('detail-scroll').scrollTop = 0;
   history.pushState({ overlay: 'detail' }, '');
