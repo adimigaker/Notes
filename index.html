@@ -2040,9 +2040,11 @@ const iconDoneSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 function doCopy(text, btn) {
   const ta = document.createElement('textarea');
   ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.setAttribute('inputmode', 'none');
   ta.style.cssText = 'position:fixed;top:0;left:0;width:2px;height:2px;opacity:0.01';
   document.body.appendChild(ta);
-  ta.focus(); ta.select();
+  ta.focus({ preventScroll: true }); ta.select();
   try {
     document.execCommand('copy');
     if (btn) { btn.innerHTML = iconDoneSvg; setTimeout(() => { btn.innerHTML = iconCopySvg; }, 1500); }
