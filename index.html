@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Notes">
-<title>Notes</title>
+<title>type</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
@@ -827,7 +827,7 @@ html, body {
 
 <!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-mark">✦ <em>notes</em></div>
+  <div class="auth-mark">✦ <em>type</em></div>
   <h1 class="auth-title">Selamat datang</h1>
   <p class="auth-sub">Simpel. Minimalis. Ringan.</p>
   <div class="auth-form" id="auth-form" style="display:none">
@@ -907,7 +907,7 @@ html, body {
 <div id="hamburger-overlay">
   <div id="hamburger-menu">
     <div class="hmenu-header">
-      <span class="hmenu-title">✦ <em>notes</em></span>
+      <span class="hmenu-title">✦ <em>type</em></span>
       <button id="hmenu-close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -994,8 +994,8 @@ html, body {
     <div style="width:36px"></div>
   </div>
   <div class="overlay-body" style="padding:28px 24px 40px;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.9;color:var(--text)">
-    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ notes</div>
-    <p style="margin-bottom:16px">Selamat datang di <strong>NOTES</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ type</div>
+    <p style="margin-bottom:16px">Selamat datang di <strong>type</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
     <p style="margin-bottom:12px">Kami sengaja membuatnya minimalis dan ringan:</p>
     <ul style="margin:0 0 16px 0;padding-left:20px;list-style:disc">
       <li style="margin-bottom:8px">Tidak ada fitur berlebih yang membebani pikiran.</li>
@@ -1698,9 +1698,10 @@ function injectBlockquoteDeleteBtns() {
 }
 
 // ── BLOCK DRAG & DROP ──
+let dragActive = false; // exposed untuk swipe handler
 (function() {
   let dragEl = null, ghost = null, dropLine = null;
-  let longPressTimer = null, dragActive = false;
+  let longPressTimer = null;
   let startY = 0, startX = 0;
 
   function getBlocks() {
@@ -2691,6 +2692,60 @@ function switchTab(tab) {
     closeBlockMenu();
   }
 }
+
+// ── SWIPE TAB ──
+(function() {
+  const app = document.getElementById('app');
+  let sx = 0, sy = 0, tracking = false, decided = false, isHoriz = false;
+  const MIN_SWIPE = 80;   // px minimal untuk trigger
+  const RATIO = 1.8;      // dx harus 1.8x dy agar dianggap horizontal
+
+  app.addEventListener('touchstart', e => {
+    // Jangan intercept kalau overlay/modal terbuka atau drag blok aktif
+    if (dragActive) return;
+    if (document.querySelector('.overlay.visible, .modal-backdrop.visible, #hamburger-overlay.visible')) return;
+    // Hanya track kalau 1 jari
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    // Zona vertikal tengah layar (10% - 90%) agar tidak conflik dengan gesture tepi
+    const relY = t.clientY / window.innerHeight;
+    if (relY < 0.10 || relY > 0.90) return;
+    sx = t.clientX; sy = t.clientY;
+    tracking = true; decided = false; isHoriz = false;
+  }, { passive: true });
+
+  app.addEventListener('touchmove', e => {
+    if (!tracking || dragActive) { tracking = false; return; }
+    if (e.touches.length !== 1) { tracking = false; return; }
+    const t = e.touches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+
+    if (!decided) {
+      // Tunggu minimal 10px movement sebelum memutuskan arah
+      if (adx < 10 && ady < 10) return;
+      isHoriz = adx > ady * RATIO;
+      decided = true;
+    }
+    // Kalau vertikal — lepas tracking, biarkan scroll jalan
+    if (!isHoriz) { tracking = false; }
+  }, { passive: true });
+
+  app.addEventListener('touchend', e => {
+    if (!tracking || !decided || !isHoriz || dragActive) { tracking = false; return; }
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx;
+    const adx = Math.abs(dx);
+    tracking = false;
+    if (adx < MIN_SWIPE) return;
+    // Swipe kiri → ke tab notes, swipe kanan → ke tab write
+    if (dx < 0 && isOnWriteTab)  switchTab('notes');
+    if (dx > 0 && !isOnWriteTab) switchTab('write');
+  }, { passive: true });
+
+  app.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+})();
 
 // ── SEARCH ──
 document.getElementById('search-close').addEventListener('click', () => history.back());
