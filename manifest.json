@@ -1,6 +1,6 @@
 {
-  "name": "Notes",
-  "short_name": "Notes",
+  "name": "type",
+  "short_name": "type",
   "description": "Simpel. Minimalis. Ringan.",
   "start_url": "./index.html",
   "display": "standalone",
