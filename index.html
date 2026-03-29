@@ -2394,13 +2394,6 @@ async function loadNotes() {
   const { data, error } = await sb.from('notes').select('*').order('created_at', { ascending: false });
   if (error) { listEl.innerHTML = '<div class="notes-empty">Gagal memuat.</div>'; return; }
   allNotes = (data || []).filter(n => n.title !== '__pintasan__');
-  // Re-scrub tags dari konten — buang tag yang berasal dari codeblock
-  allNotes.forEach(n => {
-    if (n.content && n.tags?.length) {
-      const cleanTags = extractTags(n.content);
-      n.tags = cleanTags;
-    }
-  });
   renderNotes(allNotes, listEl);
 }
 
