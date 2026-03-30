@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0f0f0f" id="theme-meta">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Notes">
-<title>type</title>
+<meta name="apple-mobile-web-app-title" content="Type">
+<title>Type</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
@@ -886,7 +886,7 @@ html, body {
     <!-- NOTES TAB -->
     <div class="tab-pane" id="tab-notes">
       <div class="app-topbar">
-        <span class="topbar-title">Catatan</span>
+        <span class="topbar-title">Type</span>
         <button class="topbar-btn" id="btn-write-notes" title="Tulis">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
@@ -994,8 +994,8 @@ html, body {
     <div style="width:36px"></div>
   </div>
   <div class="overlay-body" style="padding:28px 24px 40px;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.9;color:var(--text)">
-    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ type</div>
-    <p style="margin-bottom:16px">Selamat datang di <strong>type</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ notes</div>
+    <p style="margin-bottom:16px">Selamat datang di <strong>TYPE</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
     <p style="margin-bottom:12px">Kami sengaja membuatnya minimalis dan ringan:</p>
     <ul style="margin:0 0 16px 0;padding-left:20px;list-style:disc">
       <li style="margin-bottom:8px">Tidak ada fitur berlebih yang membebani pikiran.</li>
@@ -2454,7 +2454,7 @@ function walkNodes(node) {
   if (node.nodeType === Node.TEXT_NODE) {
     if (!/#[\w\u00C0-\u024F]+/.test(node.textContent)) return;
     const span = document.createElement('span');
-    span.innerHTML = node.textContent.replace(/#([\w\u00C0-\u024F]+)/g, (m, t) => `<a class="hashtag" data-tag="${t.toLowerCase()}">${m}</a>`);
+    span.innerHTML = node.textContent.replace(/#([\w\u00C0-\u024F]+)/g, (m, t) => `<a class="hashtag" data-tag="#${t.toLowerCase()}">${m}</a>`);
     node.parentNode.replaceChild(span, node);
   } else if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT' && node.nodeName !== 'PRE' && !node.classList?.contains('ql-code-block')) {
     Array.from(node.childNodes).forEach(walkNodes);
@@ -2554,8 +2554,12 @@ function openHashtagFilter(tag) {
       });
     });
   }
+  // Kalau dipanggil dari detail-overlay, sembunyikan dulu
+  const detailOverlay = document.getElementById('detail-overlay');
+  const fromDetail = detailOverlay.classList.contains('visible');
+  if (fromDetail) detailOverlay.classList.remove('visible');
   document.getElementById('hashtag-overlay').classList.add('visible');
-  history.pushState({ overlay: 'hashtag' }, '');
+  history.pushState({ overlay: 'hashtag', fromDetail }, '');
 }
 
 // ── BACK GESTURE (popstate) ──
@@ -2589,6 +2593,10 @@ window.addEventListener('popstate', () => {
   // Close hashtag overlay
   if (document.getElementById('hashtag-overlay').classList.contains('visible')) {
     document.getElementById('hashtag-overlay').classList.remove('visible');
+    // Kalau hashtag dibuka dari detail, kembalikan detail
+    if (history.state?.fromDetail && currentDetailNote) {
+      document.getElementById('detail-overlay').classList.add('visible');
+    }
     return;
   }
   // Close search overlay
