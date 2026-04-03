@@ -1216,6 +1216,7 @@ let editingNoteId = null; // ID note yang sedang diedit — pakai UPDATE bukan I
 let isOfflineMode = false;
 let offlineNotes = JSON.parse(localStorage.getItem('offline_notes') || '[]');
 let quill = null; // Quill instance
+let lastRange = null; // posisi cursor terakhir sebelum focus hilang
 
 // ── THEME ──
 const THEME_CYCLE = ['auto', 'light', 'dark'];
@@ -1336,13 +1337,13 @@ function initQuill() {
 
   // Show format bubble on selection, update inline + button on cursor change
   quill.on('selection-change', (range) => {
+    if (range) lastRange = range; // simpan posisi terakhir sebelum focus hilang
     if (range && range.length > 0) {
       showFormatBubble(range);
     } else {
       hideFormatBubble();
     }
     updateToolbarState();
-    // Update inline btn — use the range from the event directly
     updateInlineBtn(range, true);
   });
 
@@ -1987,7 +1988,9 @@ document.addEventListener('mousedown', e => {
 function blockMenuAction(fn) {
   closeBlockMenu();
   if (!quill) return;
-  const range = quill.getSelection() || { index: quill.getLength(), length: 0 };
+  // Pakai lastRange (posisi sebelum focus hilang ke block menu)
+  // Fallback ke getSelection() kalau masih ada, atau akhir dokumen
+  const range = quill.getSelection() || lastRange || { index: quill.getLength() - 1, length: 0 };
   fn(range.index);
 }
 
@@ -2001,6 +2004,9 @@ document.getElementById('bm-link').addEventListener('click', () => blockMenuActi
   document.getElementById('link-text-wrap').style.display = 'block';
   document.getElementById('link-text-input').value = '';
   document.getElementById('link-input').value = '';
+  document.getElementById('link-input').dataset.selIndex = '-1';
+  document.getElementById('link-input').dataset.selLength = '0';
+  document.getElementById('link-input').dataset.insertIdx = String(idx);
   showModal('modal-link');
 }));
 document.getElementById('bm-quote').addEventListener('click', () => blockMenuAction(idx => {
@@ -2028,10 +2034,18 @@ document.getElementById('bm-cl').addEventListener('click', () => blockMenuAction
 document.getElementById('bm-code').addEventListener('click', () => blockMenuAction(idx => {
   quill.insertEmbed(idx, 'code-block', '', 'user');
   quill.setSelection(idx + 1, 0, 'silent');
-  // Buka modal edit langsung
-  setTimeout(() => openCodeModal(quill.root.querySelectorAll('.ql-code-block')[
-    quill.root.querySelectorAll('.ql-code-block').length - 1
-  ]), 50);
+  // Cari blok yang baru diinsert berdasarkan index Quill
+  setTimeout(() => {
+    const blocks = quill.root.querySelectorAll('.ql-code-block');
+    let target = null;
+    blocks.forEach(block => {
+      try {
+        const blot = Quill.find(block);
+        if (blot && quill.getIndex(blot) === idx) target = block;
+      } catch(e) {}
+    });
+    openCodeModal(target || blocks[blocks.length - 1]);
+  }, 50);
 }));
 
 // ── CODEBOX HANDLERS ──
@@ -2174,19 +2188,20 @@ document.getElementById('link-ok').addEventListener('click', () => {
   const text = document.getElementById('link-text-input').value.trim();
   const storedIdx = parseInt(document.getElementById('link-input').dataset.selIndex || '-1');
   const storedLen = parseInt(document.getElementById('link-input').dataset.selLength || '0');
+  const insertIdx = parseInt(document.getElementById('link-input').dataset.insertIdx || '-1');
   hideModal('modal-link');
   if (!url || !quill) return;
-  // Auto-add https:// if no protocol present
-  if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) {
-    url = 'https://' + url;
-  }
+  if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) url = 'https://' + url;
   if (storedIdx >= 0 && storedLen > 0) {
+    // Dari format bubble — wrap selection
     quill.setSelection(storedIdx, storedLen, 'silent');
     quill.format('link', url);
   } else if (text) {
-    const idx = quill.getSelection()?.index ?? quill.getLength();
+    // Dari block menu atau bubble tanpa selection — insert di posisi yang benar
+    const idx = insertIdx >= 0 ? insertIdx : (lastRange?.index ?? quill.getLength() - 1);
     quill.insertText(idx, text, 'link', url);
   }
+  document.getElementById('link-input').dataset.insertIdx = '';
   quill.focus();
 });
 
