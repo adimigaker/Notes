@@ -141,7 +141,10 @@ html, body {
 }
 .auth-mark { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase; margin-bottom: 52px; }
 .auth-mark em { color: var(--accent); font-style: normal; }
-.auth-title { font-size: 26px; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 6px; }
+.auth-title { font-size: 26px; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 2px; }
+.auth-title-sub { font-size: 14px; color: var(--muted); margin-bottom: 10px; font-weight: 400; font-family: 'Lora', serif; }
+.auth-brand { font-family: 'DM Mono', monospace; font-size: 16px; letter-spacing: 0.3em; color: var(--accent); text-transform: uppercase; }
+.auth-tagline { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 44px; margin-top: 2px; }
 .auth-sub { font-size: 14px; color: var(--muted); font-style: italic; margin-bottom: 44px; }
 .auth-form { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; animation: fadeUp 0.3s ease; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -828,13 +831,20 @@ html, body {
 <!-- AUTH -->
 <div id="auth-screen">
   <div class="auth-mark">✦ <em>type</em></div>
-  <h1 class="auth-title">Selamat datang</h1>
-  <p class="auth-sub">Simpel. Minimalis. Ringan.</p>
+  <h1 class="auth-title">Selamat Datang</h1>
+  <p class="auth-title-sub">di</p>
+  <p class="auth-brand">✦ TYPE</p>
+  <p class="auth-tagline">Ringan. Simpel. Minimalis.</p>
   <div class="auth-form" id="auth-form" style="display:none">
     <input class="auth-input" id="auth-email" type="email" placeholder="email" autocomplete="email">
     <input class="auth-input" id="auth-pass" type="password" placeholder="password" autocomplete="current-password">
+    <input class="auth-input" id="auth-pass2" type="password" placeholder="ulangi password" autocomplete="new-password" style="display:none">
     <button class="auth-btn" id="auth-btn">MASUK</button>
     <div class="auth-error" id="auth-err"></div>
+    <div class="auth-divider" id="auth-toggle-wrap">
+      <span id="auth-toggle-label">belum punya akun?</span> <a href="#" id="auth-toggle" style="color:var(--accent);text-decoration:none">Daftar</a>
+    </div>
+    <a href="#" id="auth-forgot" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-align:center;text-decoration:none;margin-top:-4px">Lupa password?</a>
     <div class="auth-divider">atau</div>
     <button class="auth-offline-btn" id="offline-btn">Coba tanpa login (offline)</button>
   </div>
@@ -994,7 +1004,7 @@ html, body {
     <div style="width:36px"></div>
   </div>
   <div class="overlay-body" style="padding:28px 24px 40px;font-family:'Lora',Georgia,serif;font-size:15px;line-height:1.9;color:var(--text)">
-    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ notes</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:20px">✦ type</div>
     <p style="margin-bottom:16px">Selamat datang di <strong>TYPE</strong> — catatan sederhana berbasis PWA yang dirancang khusus agar kamu bisa fokus menulis, tanpa gangguan.</p>
     <p style="margin-bottom:12px">Kami sengaja membuatnya minimalis dan ringan:</p>
     <ul style="margin:0 0 16px 0;padding-left:20px;list-style:disc">
@@ -1192,6 +1202,18 @@ html, body {
     <div class="modal-actions">
       <button class="mbtn mbtn-cancel" id="so-cancel">Batal</button>
       <button class="mbtn mbtn-ok" id="so-confirm">Keluar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-resetpass">
+  <div class="modal-box">
+    <div class="modal-label">Buat Password Baru</div>
+    <input class="modal-input" id="resetpass-input" type="password" placeholder="Password baru (min 6 karakter)" autocomplete="new-password">
+    <input class="modal-input" id="resetpass-input2" type="password" placeholder="Ulangi password baru" autocomplete="new-password" style="margin-top:8px">
+    <div class="auth-error" id="resetpass-err" style="min-height:16px;font-size:11px;margin-top:4px"></div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-ok" id="resetpass-ok">Simpan</button>
     </div>
   </div>
 </div>
@@ -2336,20 +2358,101 @@ async function doSave() {
 
 
 // ── AUTH ──
-document.getElementById('auth-btn').addEventListener('click', doLogin);
-document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+let authMode = 'login'; // 'login' | 'register'
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const isReg = mode === 'register';
+  document.getElementById('auth-btn').textContent = isReg ? 'DAFTAR' : 'MASUK';
+  document.getElementById('auth-pass').placeholder = isReg ? 'password (min 6 karakter)' : 'password';
+  document.getElementById('auth-pass').autocomplete = isReg ? 'new-password' : 'current-password';
+  document.getElementById('auth-pass2').style.display = isReg ? '' : 'none';
+  document.getElementById('auth-toggle-label').textContent = isReg ? 'sudah punya akun?' : 'belum punya akun?';
+  document.getElementById('auth-toggle').textContent = isReg ? 'Masuk' : 'Daftar';
+  document.getElementById('auth-forgot').style.display = isReg ? 'none' : '';
+  document.getElementById('auth-err').textContent = '';
+  document.getElementById('auth-err').style.color = '';
+}
+
+document.getElementById('auth-forgot').addEventListener('click', async e => {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const errEl = document.getElementById('auth-err');
+  if (!email) { errEl.style.color = ''; errEl.textContent = 'Isi email dulu'; return; }
+  errEl.textContent = '...';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) {
+    errEl.style.color = '';
+    errEl.textContent = 'Gagal mengirim email reset';
+  } else {
+    errEl.style.color = 'var(--accent)';
+    errEl.textContent = 'Link reset password dikirim ke email kamu ✦';
+  }
+});
+
+document.getElementById('auth-toggle').addEventListener('click', e => {
+  e.preventDefault();
+  setAuthMode(authMode === 'login' ? 'register' : 'login');
+});
+
+document.getElementById('auth-btn').addEventListener('click', () => {
+  if (authMode === 'register') doRegister(); else doLogin();
+});
+document.getElementById('auth-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (authMode === 'register') document.getElementById('auth-pass2').focus();
+    else doLogin();
+  }
+});
+document.getElementById('auth-pass2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
 
 async function doLogin() {
   const email = document.getElementById('auth-email').value.trim();
   const pass = document.getElementById('auth-pass').value;
   const errEl = document.getElementById('auth-err');
   errEl.textContent = '';
-  if (!email || !pass) { errEl.textContent = 'isi email dan password'; return; }
+  if (!email || !pass) { errEl.textContent = 'Isi email dan password'; return; }
   const btn = document.getElementById('auth-btn');
   btn.textContent = '...'; btn.disabled = true;
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   btn.textContent = 'MASUK'; btn.disabled = false;
   if (error) { errEl.textContent = 'Email atau password salah'; return; }
+  currentUser = data.user;
+  showApp();
+}
+
+async function doRegister() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const pass2 = document.getElementById('auth-pass2').value;
+  const errEl = document.getElementById('auth-err');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Isi email dan password'; return; }
+  if (pass.length < 6) { errEl.textContent = 'Password minimal 6 karakter'; return; }
+  if (pass !== pass2) { errEl.textContent = 'Password tidak sama'; return; }
+  const btn = document.getElementById('auth-btn');
+  btn.textContent = '...'; btn.disabled = true;
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  btn.textContent = 'DAFTAR'; btn.disabled = false;
+  if (error) {
+    if (error.message?.toLowerCase().includes('already')) {
+      errEl.textContent = 'Email sudah terdaftar, silakan masuk';
+    } else {
+      errEl.textContent = error.message || 'Gagal mendaftar';
+    }
+    return;
+  }
+  // Cek apakah email confirmation diperlukan
+  if (data.user && !data.session) {
+    errEl.style.color = 'var(--accent)';
+    errEl.textContent = 'Cek email kamu untuk konfirmasi akun ✦';
+    return;
+  }
+  // Langsung masuk kalau tidak perlu konfirmasi
   currentUser = data.user;
   showApp();
 }
@@ -2626,7 +2729,46 @@ window.addEventListener('popstate', () => {
 // Push a base state on load so first back doesn't exit app
 window.addEventListener('load', () => {
   if (!history.state) history.replaceState({ base: true }, '');
+
+  // Handle redirect dari link reset password di email
+  // Supabase meletakkan token di URL hash: #access_token=...&type=recovery
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery')) {
+    // Supabase JS otomatis handle session dari hash — tunggu sebentar
+    setTimeout(async () => {
+      const { data } = await sb.auth.getSession();
+      if (data.session) {
+        currentUser = data.session.user;
+        // Tampilkan modal ganti password
+        showModal('modal-resetpass');
+        document.getElementById('resetpass-input').focus();
+        // Bersihkan hash dari URL
+        history.replaceState({}, '', window.location.pathname);
+      }
+    }, 500);
+  }
 });
+
+// Handler modal ganti password
+const resetpassOk = document.getElementById('resetpass-ok');
+if (resetpassOk) {
+  resetpassOk.addEventListener('click', async () => {
+    const pass = document.getElementById('resetpass-input').value;
+    const pass2 = document.getElementById('resetpass-input2').value;
+    const errEl = document.getElementById('resetpass-err');
+    errEl.textContent = '';
+    if (pass.length < 6) { errEl.textContent = 'Password minimal 6 karakter'; return; }
+    if (pass !== pass2) { errEl.textContent = 'Password tidak sama'; return; }
+    resetpassOk.textContent = '...'; resetpassOk.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: pass });
+    resetpassOk.textContent = 'Simpan'; resetpassOk.disabled = false;
+    if (error) { errEl.textContent = 'Gagal mengubah password'; return; }
+    hideModal('modal-resetpass');
+    toast('Password berhasil diubah ✦');
+    // Kalau belum ada app, tampilkan app
+    if (!document.getElementById('app').classList.contains('visible')) showApp();
+  });
+}
 
 // ── TABS ──
 // ── HAMBURGER MENU ──
